@@ -51,6 +51,15 @@ if "focus_mode" not in st.session_state:
 if "focus_locked" not in st.session_state:   # para highlight
     st.session_state.focus_locked = False
 
+
+if "combine_sois_mode" not in st.session_state:
+    st.session_state.combine_sois_mode = False
+
+if "selected_sois_for_combination" not in st.session_state:
+    st.session_state.selected_sois_for_combination = []
+
+
+
 # --------------------------------------------
 # VISUAL WORKSPACE
 # --------------------------------------------
@@ -807,31 +816,118 @@ if st.session_state.focus_locked:
             len(current_ids)
         )
 
-        st.session_state.saved_sois.append(
-            {
-                "name": soi_name,
-                "ids": current_ids,
-                "size": len(current_ids)
-            }
-        )
+        existing_names = [soi["name"] for soi in st.session_state.saved_sois]
+
+        if soi_name in existing_names:
+            st.sidebar.warning("A SOI with this name already exists. Please choose another name.")
+        else:
+            st.session_state.saved_sois.append(
+                {
+                    "name": soi_name,
+                    "ids": current_ids,
+                    "size": len(current_ids),
+                    "source_lens": mode,
+                }
+            )
+            st.sidebar.success(f"Saved SOI: {soi_name}")
 
     # ----------------------------------
     # Saved SOIs
     # ----------------------------------
 
     if st.session_state.saved_sois:
-
         st.sidebar.markdown("### 📚 Saved SOIs")
 
-        for soi in st.session_state.saved_sois:
+        for idx, soi in enumerate(st.session_state.saved_sois):
+            size = soi.get("size", len(soi.get("ids", [])))
+            source_lens = soi.get("source_lens", "unknown")
 
-            size = soi.get(
-                "size",
-                len(soi.get("ids", []))
+            col_info, col_del = st.sidebar.columns([0.82, 0.18])
+
+            with col_info:
+                st.caption(
+                    f"• {soi['name']} [{size} solutions] · {source_lens}"
+                )
+
+            with col_del:
+                delete_clicked = st.button(
+                    "🗑️",
+                    key=f"delete_soi_{idx}",
+                    help=f"Delete SOI: {soi['name']}"
+                )
+
+            if delete_clicked:
+                deleted_name = st.session_state.saved_sois[idx]["name"]
+                st.session_state.saved_sois.pop(idx)
+
+                # Si el SOI borrado estaba cargado, resetear selector
+                if st.session_state.get("active_soi") == deleted_name:
+                    st.session_state["active_soi"] = "None"
+
+                # También limpiar selección de combinación si estaba marcada
+                st.session_state.selected_sois_for_combination = [
+                    name for name in st.session_state.selected_sois_for_combination
+                    if name != deleted_name
+                ]
+
+                st.rerun()
+
+if st.session_state.saved_sois:
+    st.sidebar.markdown("### 🔗 SOI Combination")
+
+    st.session_state.combine_sois_mode = st.sidebar.checkbox(
+        "Combine saved SOIs",
+        value=st.session_state.combine_sois_mode,
+        help="Select several saved SOIs to combine or compare. Consensus calculation will be added later."
+    )
+
+    if st.session_state.combine_sois_mode:
+        st.sidebar.caption("Select SOIs to include in the combination:")
+
+        selected_for_combination = []
+
+        for idx, soi in enumerate(st.session_state.saved_sois):
+            soi_name = soi["name"]
+            size = soi.get("size", len(soi.get("ids", [])))
+
+            checked = st.sidebar.checkbox(
+                f"{soi_name} [{size}]",
+                value=soi_name in st.session_state.selected_sois_for_combination,
+                key=f"combine_soi_{idx}"
             )
 
-            st.sidebar.caption(
-                f"• {soi['name']} [{size} solutions]"
+            if checked:
+                selected_for_combination.append(soi_name)
+
+        st.session_state.selected_sois_for_combination = selected_for_combination
+
+        st.sidebar.info(
+            f"{len(selected_for_combination)} SOI(s) selected for combination"
+        )
+
+        col_preview, col_clear = st.sidebar.columns(2)
+
+        with col_preview:
+            preview_combine = st.button(
+                "Preview",
+                key="preview_soi_combination",
+                use_container_width=True
+            )
+
+        with col_clear:
+            clear_combine = st.button(
+                "Clear",
+                key="clear_soi_combination",
+                use_container_width=True
+            )
+
+        if clear_combine:
+            st.session_state.selected_sois_for_combination = []
+            st.rerun()
+
+        if preview_combine:
+            st.sidebar.warning(
+                "SOI combination preview is not implemented yet."
             )
 
 st.sidebar.checkbox(
