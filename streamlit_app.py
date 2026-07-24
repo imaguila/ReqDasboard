@@ -42,7 +42,7 @@ if "show_comparison" not in st.session_state:
     st.session_state.show_comparison = False
 
 if "selected_ids" not in st.session_state:
-    st.session_state.selected_ids = []
+    st.session_state.pending_clear_selected_ids = True
 
 if "focus_mode" not in st.session_state:
     st.session_state.focus_mode = False
@@ -748,6 +748,9 @@ if dropped_ids:
 
 
 
+if st.session_state.pending_clear_selected_ids:
+    st.session_state.selected_ids = []
+    st.session_state.pending_clear_selected_ids = False
 
 
 # Nota: NO pasamos `default=` aquí a propósito. Cuando se usa `key=`, el
@@ -1017,7 +1020,11 @@ if st.session_state.saved_sois:
             st.session_state["active_soi"] = "None"
 
             # Limpiamos highlights que puedan no pertenecer al consenso
-            st.session_state.selected_ids = []
+            st.session_state.pending_clear_selected_ids = True
+
+            if "pending_clear_selected_ids" not in st.session_state:
+                st.session_state.pending_clear_selected_ids = False
+
 
             st.sidebar.success(
                 f"Consensus SOI applied: {len(combined_ids)} solutions"
