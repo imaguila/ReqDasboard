@@ -59,6 +59,14 @@ if "selected_sois_for_combination" not in st.session_state:
     st.session_state.selected_sois_for_combination = []
 
 
+if "active_combined_soi" not in st.session_state:
+    st.session_state.active_combined_soi = None
+
+if "consensus_threshold" not in st.session_state:
+    st.session_state.consensus_threshold = 0.5
+
+
+
 
 # --------------------------------------------
 # VISUAL WORKSPACE
@@ -617,19 +625,8 @@ roi_df = selected_df.copy()
 # Por definición del workflow (CSS ⊆ SOI), un candidato resaltado que ya no
 # pertenece a la SOI actual deja de tener sentido como highlight: lo quitamos
 # de forma explícita ANTES de instanciar el widget, y avisamos al usuario.
-valid_roi_ids = roi_df["id"].tolist()
-previous_selected_ids = st.session_state.get("selected_ids", [])
-dropped_ids = [sid for sid in previous_selected_ids if sid not in valid_roi_ids]
 
-if dropped_ids:
-    st.session_state.selected_ids = [
-        sid for sid in previous_selected_ids if sid in valid_roi_ids
-    ]
-    st.sidebar.warning(
-        f"{len(dropped_ids)} previously highlighted solution(s) fell outside "
-        "the current framing/lens and were unhighlighted: "
-        f"{', '.join(str(int(i)) for i in dropped_ids)}"
-    )
+
 
 # --------------------------------------------
 # SOI FOCUS + COMPARATIVE SUPPORT
@@ -710,25 +707,48 @@ else:
             key="active_soi"
         )
 
-if active_soi and active_soi != "None":
+# ----------------------------------
+# Apply active combined SOI
+# ----------------------------------
+if st.session_state.active_combined_soi is not None:
+    combined_soi = st.session_state.active_combined_soi
+    combined_ids = combined_soi.get("ids", [])
 
-    soi_match = next(
-        (
-            soi
-            for soi in st.session_state.saved_sois
-            if soi["name"] == active_soi
-        ),
-        None
+    roi_df = roi_df[
+        roi_df["id"].isin(combined_ids)
+    ].copy()
+
+    consensus_scores = combined_soi.get("consensus_scores", {})
+    roi_df["consensus_score"] = roi_df["id"].map(consensus_scores).fillna(0)
+
+    color_col = "consensus_score"
+
+    st.sidebar.info(
+        f"Active combined SOI: {combined_soi['name']} "
+        f"[{len(combined_ids)} solutions]"
     )
 
-    if soi_match is not None:
-        st.write(
-            "Loaded SOI size:",
-            len(soi_match["ids"])
-        )
-        roi_df = roi_df[
-            roi_df["id"].isin(soi_match["ids"])
-        ].copy()
+
+
+
+
+valid_roi_ids = roi_df["id"].tolist()
+previous_selected_ids = st.session_state.get("selected_ids", [])
+dropped_ids = [sid for sid in previous_selected_ids if sid not in valid_roi_ids]
+
+if dropped_ids:
+    st.session_state.selected_ids = [
+        sid for sid in previous_selected_ids if sid in valid_roi_ids
+    ]
+    st.sidebar.warning(
+        f"{len(dropped_ids)} previously highlighted solution(s) fell outside "
+        "the current framing/lens and were unhighlighted: "
+        f"{', '.join(str(int(i)) for i in dropped_ids)}"
+    )
+
+
+
+
 
 # Nota: NO pasamos `default=` aquí a propósito. Cuando se usa `key=`, el
 # valor de session_state ya gobierna el widget; combinar `default=` y `key=`
@@ -903,13 +923,40 @@ if st.session_state.saved_sois:
             f"{len(selected_for_combination)} SOI(s) selected for combination"
         )
 
-        col_preview, col_clear = st.sidebar.columns(2)
+        # col_preview, col_clear = st.sidebar.columns(2)
+        # ----------------------------------
+        # Consensus threshold
+        # ----------------------------------
+        consensus_threshold = st.sidebar.slider(
+            "Consensus level",
+            min_value=0.0,
+            max_value=1.0,
+            value=st.session_state.consensus_threshold,
+            step=0.05,
+            help=(
+                "Minimum proportion of selected SOIs that must support a solution. "
+                "Higher values produce a smaller consensus core; lower values produce a broader consensus pool."
+            ),
+            key="consensus_threshold_slider"
+        )
 
-        with col_preview:
-            preview_combine = st.button(
-                "Preview",
-                key="preview_soi_combination",
-                use_container_width=True
+        st.session_state.consensus_threshold = consensus_threshold
+
+        if consensus_threshold >= 0.75:
+            st.sidebar.caption("Mode: consensus core")
+        elif consensus_threshold >= 0.50:
+            st.sidebar.caption("Mode: consensus pool")
+        else:
+            st.sidebar.caption("Mode: broad exploratory pool")
+
+        col_apply, col_clear = st.sidebar.columns(2)
+
+        with col_apply:
+            apply_combine = st.button(
+                "Apply",
+                key="apply_soi_combination",
+                use_container_width=True,
+                disabled=len(selected_for_combination) < 2
             )
 
         with col_clear:
@@ -921,12 +968,62 @@ if st.session_state.saved_sois:
 
         if clear_combine:
             st.session_state.selected_sois_for_combination = []
+            st.session_state.active_combined_soi = None
             st.rerun()
 
-        if preview_combine:
-            st.sidebar.warning(
-                "SOI combination preview is not implemented yet."
+        if apply_combine:
+            selected_sois = [
+                soi for soi in st.session_state.saved_sois
+                if soi["name"] in selected_for_combination
+            ]
+
+            n_sois = len(selected_sois)
+
+            # Consensus by solution ID using equal weights
+            support = {}
+            support_names = {}
+
+            for soi in selected_sois:
+                soi_name = soi["name"]
+                unique_ids = set(soi.get("ids", []))
+
+                for sid in unique_ids:
+                    support[sid] = support.get(sid, 0) + 1
+                    support_names.setdefault(sid, []).append(soi_name)
+
+            consensus_scores = {
+                sid: support_count / n_sois
+                for sid, support_count in support.items()
+            }
+
+            combined_ids = [
+                sid for sid, score in consensus_scores.items()
+                if score >= consensus_threshold
+            ]
+
+            combined_ids = sorted(combined_ids)
+
+            st.session_state.active_combined_soi = {
+                "name": f"Consensus SOI ({consensus_threshold:.2f})",
+                "ids": combined_ids,
+                "size": len(combined_ids),
+                "threshold": consensus_threshold,
+                "source_sois": selected_for_combination,
+                "consensus_scores": consensus_scores,
+                "support_names": support_names,
+            }
+
+            # Para evitar conflicto con un SOI cargado manualmente
+            st.session_state["active_soi"] = "None"
+
+            # Limpiamos highlights que puedan no pertenecer al consenso
+            st.session_state.selected_ids = []
+
+            st.sidebar.success(
+                f"Consensus SOI applied: {len(combined_ids)} solutions"
             )
+
+            st.rerun()
 
 st.sidebar.markdown("## 🎯 Candidate Solution Set focus and Comparison")
 
