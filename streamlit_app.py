@@ -68,7 +68,8 @@ if "active_combined_soi" not in st.session_state:
 if "consensus_threshold" not in st.session_state:
     st.session_state.consensus_threshold = 0.5
 
-
+if "pending_reset_active_soi" not in st.session_state:
+    st.session_state.pending_reset_active_soi = False
 
 
 # --------------------------------------------
@@ -86,6 +87,8 @@ can_add_map = len(remaining) >= 2
 can_reset_workspace = n_maps > 0
 
 # Texto de ayuda contextual
+
+
 st.sidebar.caption(
     f"Active maps: {n_maps} · Remaining metrics available for new maps: {len(remaining)}"
 )
@@ -713,6 +716,9 @@ else:
 # ----------------------------------
 # Apply active combined SOI
 # ----------------------------------
+# ----------------------------------
+# Apply active combined SOI
+# ----------------------------------
 if st.session_state.active_combined_soi is not None:
     combined_soi = st.session_state.active_combined_soi
     combined_ids = combined_soi.get("ids", [])
@@ -738,6 +744,8 @@ if st.session_state.active_combined_soi is not None:
         st.session_state.active_combined_soi = None
         st.session_state.pending_clear_selected_ids = True
         st.rerun()
+
+
 
 # ----------------------------------
 # Recompute valid IDs after saved/combined SOI filtering
@@ -913,13 +921,17 @@ if st.session_state.focus_locked:
 
                 st.rerun()
 
+
+# ----------------------------------
+# SOI Combination
+# ----------------------------------
 if st.session_state.saved_sois:
     st.sidebar.markdown("### 🔗 SOI Combination")
 
     st.session_state.combine_sois_mode = st.sidebar.checkbox(
         "Combine saved SOIs",
         value=st.session_state.combine_sois_mode,
-        help="Select several saved SOIs to combine or compare. Consensus calculation will be added later."
+        help="Select several saved SOIs to generate a consensus SOI."
     )
 
     if st.session_state.combine_sois_mode:
@@ -934,7 +946,7 @@ if st.session_state.saved_sois:
             checked = st.sidebar.checkbox(
                 f"{soi_name} [{size}]",
                 value=soi_name in st.session_state.selected_sois_for_combination,
-                key=f"combine_soi_{idx}"
+                key=f"combine_soi_{idx}_{soi_name}"
             )
 
             if checked:
@@ -946,10 +958,6 @@ if st.session_state.saved_sois:
             f"{len(selected_for_combination)} SOI(s) selected for combination"
         )
 
-        # col_preview, col_clear = st.sidebar.columns(2)
-        # ----------------------------------
-        # Consensus threshold
-        # ----------------------------------
         consensus_threshold = st.sidebar.slider(
             "Consensus level",
             min_value=0.0,
@@ -992,6 +1000,7 @@ if st.session_state.saved_sois:
         if clear_combine:
             st.session_state.selected_sois_for_combination = []
             st.session_state.active_combined_soi = None
+            st.session_state.pending_clear_selected_ids = True
             st.rerun()
 
         if apply_combine:
@@ -1002,7 +1011,6 @@ if st.session_state.saved_sois:
 
             n_sois = len(selected_sois)
 
-            # Consensus by solution ID using equal weights
             support = {}
             support_names = {}
 
@@ -1026,32 +1034,34 @@ if st.session_state.saved_sois:
 
             combined_ids = sorted(combined_ids)
 
-            st.session_state.active_combined_soi = {
-                "name": f"Consensus SOI ({consensus_threshold:.2f})",
-                "ids": combined_ids,
-                "size": len(combined_ids),
-                "threshold": consensus_threshold,
-                "source_sois": selected_for_combination,
-                "consensus_scores": consensus_scores,
-                "support_names": support_names,
-            }
+            if len(combined_ids) == 0:
+                st.sidebar.warning(
+                    "No solutions satisfy the selected consensus level. Try lowering the threshold."
+                )
+            else:
+                st.session_state.active_combined_soi = {
+                    "name": f"Consensus SOI ({consensus_threshold:.2f})",
+                    "ids": combined_ids,
+                    "size": len(combined_ids),
+                    "threshold": consensus_threshold,
+                    "source_sois": selected_for_combination,
+                    "consensus_scores": consensus_scores,
+                    "support_names": support_names,
+                }
 
-            # Para evitar conflicto con un SOI cargado manualmente
-            st.session_state["active_soi"] = "None"
+                st.session_state.pending_reset_active_soi = True
+                st.session_state.pending_clear_selected_ids = True
 
-            # Limpiamos highlights que puedan no pertenecer al consenso
-            st.session_state.pending_clear_selected_ids = True
+                st.sidebar.success(
+                    f"Consensus SOI applied: {len(combined_ids)} solutions"
+                )
 
-            if "pending_clear_selected_ids" not in st.session_state:
-                st.session_state.pending_clear_selected_ids = False
+                st.rerun()
 
 
-            st.sidebar.success(
-                f"Consensus SOI applied: {len(combined_ids)} solutions"
-            )
-
-            st.rerun()
-
+# ----------------------------------
+# Detailed comparison activation
+# ----------------------------------
 st.sidebar.markdown("## 🎯 Candidate Solution Set focus and Comparison")
 
 st.sidebar.checkbox(
@@ -1060,10 +1070,6 @@ st.sidebar.checkbox(
 )
 
 
-
-# ----------------------------------
-# Focus mode → filtrar datos reales
-# ----------------------------------
 selected_df = roi_df.copy()
 
 if focus_mode:
