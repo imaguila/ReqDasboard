@@ -636,8 +636,6 @@ if dropped_ids:
 # --------------------------------------------
 
 
-st.sidebar.markdown("## 🎯 Candidate Solution Set focus and Comparison")
-
 focus_mode = st.sidebar.checkbox(
     "Lock current candidate set",
     help="Keep candidates highlighted in context, or restrict analysis to them.",
@@ -929,6 +927,8 @@ if st.session_state.saved_sois:
             st.sidebar.warning(
                 "SOI combination preview is not implemented yet."
             )
+
+st.sidebar.markdown("## 🎯 Candidate Solution Set focus and Comparison")
 
 st.sidebar.checkbox(
     "Open detailed comparison",
