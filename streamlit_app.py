@@ -42,7 +42,10 @@ if "show_comparison" not in st.session_state:
     st.session_state.show_comparison = False
 
 if "selected_ids" not in st.session_state:
-    st.session_state.pending_clear_selected_ids = True
+    st.session_state.selected_ids = []
+
+if "pending_clear_selected_ids" not in st.session_state:
+    st.session_state.pending_clear_selected_ids = False
 
 if "focus_mode" not in st.session_state:
     st.session_state.focus_mode = False
@@ -728,40 +731,57 @@ if st.session_state.active_combined_soi is not None:
         f"[{len(combined_ids)} solutions]"
     )
 
+    if st.sidebar.button(
+        "Clear active combined SOI",
+        key="clear_active_combined_soi"
+    ):
+        st.session_state.active_combined_soi = None
+        st.session_state.pending_clear_selected_ids = True
+        st.rerun()
 
-
-
-
+# ----------------------------------
+# Recompute valid IDs after saved/combined SOI filtering
+# ----------------------------------
 valid_roi_ids = roi_df["id"].tolist()
-previous_selected_ids = st.session_state.get("selected_ids", [])
-dropped_ids = [sid for sid in previous_selected_ids if sid not in valid_roi_ids]
 
-if dropped_ids:
-    st.session_state.selected_ids = [
-        sid for sid in previous_selected_ids if sid in valid_roi_ids
-    ]
-    st.sidebar.warning(
-        f"{len(dropped_ids)} previously highlighted solution(s) fell outside "
-        "the current framing/lens and were unhighlighted: "
-        f"{', '.join(str(int(i)) for i in dropped_ids)}"
-    )
-
-
-
+# ----------------------------------
+# Pending clear must happen before the widget is created
+# ----------------------------------
 if st.session_state.pending_clear_selected_ids:
     st.session_state.selected_ids = []
     st.session_state.pending_clear_selected_ids = False
 
+# ----------------------------------
+# Remove highlighted candidates that are no longer in the active SOI
+# ----------------------------------
+previous_selected_ids = st.session_state.get("selected_ids", [])
+dropped_ids = [
+    sid for sid in previous_selected_ids
+    if sid not in valid_roi_ids
+]
 
-# Nota: NO pasamos `default=` aquí a propósito. Cuando se usa `key=`, el
-# valor de session_state ya gobierna el widget; combinar `default=` y `key=`
-# con un valor que puede quedar fuera de `options` es la causa raíz del bug.
+if dropped_ids:
+    st.session_state.selected_ids = [
+        sid for sid in previous_selected_ids
+        if sid in valid_roi_ids
+    ]
+
+    st.sidebar.warning(
+        f"{len(dropped_ids)} previously highlighted solution(s) fell outside "
+        "the current framing/lens/SOI and were unhighlighted: "
+        f"{', '.join(str(int(i)) for i in dropped_ids)}"
+    )
+
+# ----------------------------------
+# Highlight widget
+# ----------------------------------
 selected_ids = st.multiselect(
     " 👆 Highlight candidate solutions",
     options=valid_roi_ids,
     key="selected_ids",
     help="Manually mark solutions for visual tracking or focused analysis."
 )
+
 
 roi_df["highlight"] = roi_df["id"].isin(selected_ids)
 
