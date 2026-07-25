@@ -1,0 +1,4 @@
+tau,consensus_size,interpretation
+0.5,17,broad consensus pool
+0.75,7,compact consensus core
+0.9,4,compact consensus core
