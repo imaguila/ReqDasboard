@@ -135,8 +135,8 @@ def plot_radar(selected_df, available_metrics, group_col=None):
     tab1, tab2, tab3, tab4 = st.tabs([
         "📊 Comparative Profile",
         "👥 Stakeholder Impact",
-        "📋 Requirement Composition",
-        "🤝 Stakeholder–Requirement Alignment"
+        "📋 Requirement Composition"#,
+       # "🤝 Stakeholder–Requirement Alignment"
     ])
 
     # ---------- PERFORMANCE ----------
@@ -324,115 +324,115 @@ def plot_radar(selected_df, available_metrics, group_col=None):
 
 
 # ---------- NUEVA PESTAÑA: ALINEACIÓN STAKEHOLDERS + FILA RESUMEN ----------
-    with tab4:
-        st.subheader("Stakeholder-Requirement Alignment Matrix")
-        st.write("Visualizing which requirements satisfy each stakeholder's specific interests and their final release status.")
+#    with tab4:
+#        st.subheader("Stakeholder-Requirement Alignment Matrix")
+#        st.write("Visualizing which requirements satisfy each stakeholder's specific interests and their final release status.")
 
         # 1. Identificar columnas
-        req_cols = [c for c in selected_df.columns if c.startswith("req_")]
-        st_cols = [c for c in selected_df.columns if c.startswith("stcov_")]
+#        req_cols = [c for c in selected_df.columns if c.startswith("req_")]
+#        st_cols = [c for c in selected_df.columns if c.startswith("stcov_")]
 
         # Desplegable para analizar una solución concreta
-        focus_id = st.selectbox("Select Solution to analyze alignment", compare_df["id"].unique(), key="align_sel")
-        row_focus = compare_df[compare_df["id"] == focus_id].iloc[0]
+#        focus_id = st.selectbox("Select Solution to analyze alignment", compare_df["id"].unique(), key="align_sel")
+#        row_focus = compare_df[compare_df["id"] == focus_id].iloc[0]
 
         # Matriz real (requisitos x stakeholders) calculada a partir del
         # dataset del problema (vij) en problem.py::calcular_matriz_solicitud,
         # y guardada en session_state por input_panel.py. Sustituye al
         # antiguo mapeo simulado basado en hash(st_name + req_name).
-        matriz_solicitud = st.session_state.get("matriz_solicitud")
+#        matriz_solicitud = st.session_state.get("matriz_solicitud")
 
-        if not req_cols or not st_cols:
-            st.info("Required data columns (req_ or stcov_) missing.")
-        elif matriz_solicitud is None:
-            st.info(
-                "No stakeholder-request data available for this dataset "
-                "(e.g. no problem file was loaded, or you are using an "
-                "uploaded CSV). Alignment cannot be computed."
-            )
-        else:
+#        if not req_cols or not st_cols:
+#            st.info("Required data columns (req_ or stcov_) missing.")
+#        elif matriz_solicitud is None:
+#            st.info(
+#                "No stakeholder-request data available for this dataset "
+#                "(e.g. no problem file was loaded, or you are using an "
+#                "uploaded CSV). Alignment cannot be computed."
+#            )
+#        else:
 
-            alignment_data = []
-            # Generamos las filas de los Stakeholders normales
-            for st_name in st_cols:
-                # "stcov_cv1" -> "cv1", para indexar en matriz_solicitud
-                cliente = st_name.replace("stcov_", "")
+#            alignment_data = []
+#            # Generamos las filas de los Stakeholders normales
+#            for st_name in st_cols:
+#                # "stcov_cv1" -> "cv1", para indexar en matriz_solicitud
+#                cliente = st_name.replace("stcov_", "")
 
-                if cliente not in matriz_solicitud.columns:
+#                if cliente not in matriz_solicitud.columns:
                     # Por seguridad, si no encontramos el stakeholder en la
                     # matriz real, lo tratamos como "no solicitado" en vez
                     # de simularlo.
-                    row_values = [0] * len(req_cols)
-                    alignment_data.append(row_values)
-                    continue
+#                    row_values = [0] * len(req_cols)
+#                    alignment_data.append(row_values)
+#                    continue
 
-                row_values = []
-                for j, req_name in enumerate(req_cols):
-                    proposed_by_stake = bool(matriz_solicitud.iloc[j][cliente])
-                    is_included = row_focus[req_name] == 1
+#                row_values = []
+#                for j, req_name in enumerate(req_cols):
+#                    proposed_by_stake = bool(matriz_solicitud.iloc[j][cliente])
+#                    is_included = row_focus[req_name] == 1
 
-                    if proposed_by_stake and is_included:
-                        val = 2  # Solicitado e incluido (Verde brillante)
-                    elif proposed_by_stake and not is_included:
-                        val = 1  # Solicitado pero fuera (Gris medio)
-                    else:
-                        val = 0  # No solicitado (Gris muy claro)
-                    row_values.append(val)
-                alignment_data.append(row_values)
+#                    if proposed_by_stake and is_included:
+#                        val = 2  # Solicitado e incluido (Verde brillante)
+#                    elif proposed_by_stake and not is_included:
+#                        val = 1  # Solicitado pero fuera (Gris medio)
+#                    else:
+#                        val = 0  # No solicitado (Gris muy claro)
+#                    row_values.append(val)
+#                alignment_data.append(row_values)
 
             # --- LA FILA RESUMEN ---
             # Añadimos la fila final que mira directamente si el req está en la solución (1) o no (0)
-            summary_row = []
-            for req_name in req_cols:
-                if row_focus[req_name] == 1:
-                    summary_row.append(3) # Incluido en el release (Verde Oscuro)
-                else:
-                    summary_row.append(1) # Fuera del release (Gris Medio)
-            alignment_data.append(summary_row)
+#            summary_row = []
+#            for req_name in req_cols:
+#                if row_focus[req_name] == 1:
+#                    summary_row.append(3) # Incluido en el release (Verde Oscuro)
+#                else:
+#                    summary_row.append(1) # Fuera del release (Gris Medio)
+#            alignment_data.append(summary_row)
 
             # Creamos la lista de nombres para el eje Y incluyendo nuestro resumen
-            y_labels = [s.replace("stcov_", "Stakeholder ") for s in st_cols] + ["📦 RELEASE STATUS"]
+#            y_labels = [s.replace("stcov_", "Stakeholder ") for s in st_cols] + ["📦 RELEASE STATUS"]
 
             # Crear DataFrame para el Heatmap
-            align_df = pd.DataFrame(alignment_data, index=y_labels, columns=req_cols)
+#            align_df = pd.DataFrame(alignment_data, index=y_labels, columns=req_cols)
 
             # 2. Construir el Heatmap con Escala de 4 colores discretos
-            fig_align = px.imshow(
-                align_df,
-                labels=dict(x="Requirements", y="Alignment Status", color="Status"),
-                x=req_cols,
-                y=y_labels,
+#            fig_align = px.imshow(
+#                align_df,
+#                labels=dict(x="Requirements", y="Alignment Status", color="Status"),
+#                x=req_cols,
+#                y=y_labels,
                 # Definimos los cortes exactos de color para 0, 1, 2 y 3
-                color_continuous_scale=[
-                    [0.0, "#f8f9fa"],   # 0: Sin interés (Blanco/Gris suave)
-                    [0.33, "#adb5bd"],  # 1: Fuera del Release / Deuda (Gris medio)
-                    [0.66, "#00e676"],  # 2: Solicitado e Incluido (Verde brillante)
-                    [1.0, "#00695c"]    # 3: Fila Resumen - ¡En el Release! (Verde Oscuro Azulado)
-                ]
-            )
+#                color_continuous_scale=[
+#                    [0.0, "#f8f9fa"],   # 0: Sin interés (Blanco/Gris suave)
+#                    [0.33, "#adb5bd"],  # 1: Fuera del Release / Deuda (Gris medio)
+#                    [0.66, "#00e676"],  # 2: Solicitado e Incluido (Verde brillante)
+#                    [1.0, "#00695c"]    # 3: Fila Resumen - ¡En el Release! (Verde Oscuro Azulado)
+#                ]
+#            )
 
             # Diseño limpio del gráfico
-            fig_align.update_layout(
-                template="plotly_white",
-                coloraxis_showscale=False, # Ocultamos barra de escala continua
-                xaxis=dict(tickangle=-45, tickfont=dict(size=11, color="black")),
-                yaxis=dict(tickfont=dict(size=11, color="black")),
-                height=450
-            )
+#            fig_align.update_layout(
+#               template="plotly_white",
+#                coloraxis_showscale=False, # Ocultamos barra de escala continua
+#                xaxis=dict(tickangle=-45, tickfont=dict(size=11, color="black")),
+#                yaxis=dict(tickfont=dict(size=11, color="black")),
+#                height=450
+#            )
 
             # Espaciado de celdas y caja de información al pasar el ratón (Hover)
-            fig_align.update_traces(
-                xgap=3, ygap=3,
-                hovertemplate="<b>%{y}</b><br>Requirement: %{x}<extra></extra>"
-            )
+#            fig_align.update_traces(
+#                xgap=3, ygap=3,
+#                hovertemplate="<b>%{y}</b><br>Requirement: %{x}<extra></extra>"
+#            )
 
-            st.plotly_chart(fig_align, use_container_width=True)
+#            st.plotly_chart(fig_align, use_container_width=True)
             
             # Leyenda explicativa interactiva en columnas abajo del gráfico
-            c1, c2, c3= st.columns(3)
-            c1.markdown("⚪ **Not requested**")
-            c2.markdown("🔘 **Requested (Not included) / Excluded from the Release**")
-            c3.markdown("🟢 **Requested and Included (Stakeholder)**")
+#            c1, c2, c3= st.columns(3)
+#            c1.markdown("⚪ **Not requested**")
+#            c2.markdown("🔘 **Requested (Not included) / Excluded from the Release**")
+#            c3.markdown("🟢 **Requested and Included (Stakeholder)**")
           #  c4.markdown("🌲 **Included in the Final Release (Summary Row)**")
 
 # --------------------------------------------
