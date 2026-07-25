@@ -132,7 +132,7 @@ def plot_radar(selected_df, available_metrics, group_col=None):
 
     compare_df = df_for_compare[df_for_compare["id"].isin(compare_ids)].copy()
 
-    tab1, tab2, tab3, tab4 = st.tabs([
+    tab1, tab2, tab3 = st.tabs([
         "📊 Comparative Profile",
         "👥 Stakeholder Impact",
         "📋 Requirement Composition"#,
